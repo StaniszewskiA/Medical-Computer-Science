@@ -53,7 +53,8 @@ class Inka:
 
     @staticmethod
     def load_video_data():
-        # todo: enter paths to dataset dir and video file 
+
+        # todo: enter paths to dataset dir and video file
         path_dir = "\\Users\\PanSt\\OneDrive\\Pulpit\\pythonProject\\Lab1"
         video_filename = 'video1.wmv'
 
@@ -116,8 +117,6 @@ class Inka:
 
     @staticmethod
     def butter_bandpass(lowcut, highcut, fs, order=5):
-        # todo: implement bandpass butterworth filter
-        # hint: normalize the low and highcuts using the sampling rate
         nyquist = 0.5 * fs
         low = lowcut / nyquist
         high = highcut / nyquist
@@ -136,7 +135,7 @@ class Inka:
         self.frame_array_filtered = np.array(self.frames_filtered)
         self.median_initial20 = np.median(self.frame_array_filtered[:20, :, :], axis=0)
 
-    @staticmethod
+    # @staticmethod
     def anim_process_frame(self, i):
         frame = self.frames[i]
         frame_filtered = self.frames_filtered[i]
@@ -144,7 +143,7 @@ class Inka:
         start_idx = np.max([0, i - win_len])
         end_idx = np.max([1, i])
         # todo: calculate median of frames between start and end idxs
-        self.frame_median = (start_idx + end_idx) / 2
+        self.frame_median = (start_idx + end_idx)//2
 
         # todo: calculate the difference between the filtered frames and the median
         # hint: normalize the frame values afterwards
@@ -174,17 +173,17 @@ class Inka:
             roi_x2 = self.roi_cx + self.roi_size
             roi_y1 = self.roi_cy - self.roi_size
             roi_y2 = self.roi_cy + self.roi_size
-            roi = frame_diff_median[self.roi_x1:self.roi_x2, self.roi_y1:self.roi_y2]
+            # roi = frame_diff_median[self.roi_x1:self.roi_x2, self.roi_y1:self.roi_y2]
             roi = frame_diff_median[roi_y1:roi_y2, roi_x1:roi_x2]
             self.roi_color = (255, 0, 0)
             # # already after one thresholding, now just to binarize
             ret_val, roi_binary = cv2.threshold(roi, 10, 255, cv2.THRESH_BINARY)
             roi_moments = cv2.moments(roi_binary)
             if roi_moments["m00"] != 0:
-                print(roi_moments)
+                # print(roi_moments)
                 blob_cx = int(roi_moments["m10"] / roi_moments["m00"])
                 blob_cy = int(roi_moments["m01"] / roi_moments["m00"])
-                print('blob bcx {} bcy {}'.format(blob_cx, blob_cy))
+                # print('blob bcx {} bcy {}'.format(blob_cx, blob_cy))
                 self.roi_cx = min(frame.shape[1], max(self.roi_size, roi_x1 + blob_cx))
                 self.roi_cy = min(frame.shape[0], max(self.roi_size, roi_y1 + blob_cy))
             else:
@@ -203,25 +202,25 @@ class Inka:
         roi_y2 = self.roi_cy + self.roi_size
         roi_start = (roi_x2 - 1, roi_y1)
         roi_end = (roi_x1, roi_y2 - 1)
-        print(roi_start)
-        print(roi_end)
+        # print(roi_start)
+        # print(roi_end)
         frame_rgb = cv2.rectangle(frame_rgb, roi_start, roi_end, self.roi_color, self.roi_thickness)
 
 
         # --- 3d
         if self.use3d:
             frame = frame / 3.0
-            frame[frame_diff_median > threshold] = 250
+            #frame[frame_diff_median > threshold] = 250
             zz = frame/255.0
-            zz = frame_diff_median/255.0
+            # zz = frame_diff_median/255.0
             self.surface_plot.remove()
             self.surface_plot = self.surface_ax.plot_surface(self.xx, self.yy, zz, linewidth=0, antialiased=False, cmap=cm.plasma)
 
         # --- set plots
-        self.im_video.set_array(frame)
+        # im_video.set_array(frame)
         self.im_video.set_array(frame_rgb)
         if not self.use3d:
-            self.im_video_proc.set_array(frame_diff_median)
+            # self.im_video_proc.set_array(frame_diff_median)
             self.im_video_proc.set_array(frame_diff_median_rgb)
         self.line_audio.set_xdata(0.033 * i)
         self.line_audio_proc.set_xdata(0.033 * i)
@@ -231,8 +230,6 @@ class Inka:
             return [self.im_video, self.im_video_proc, self.line_audio, self.line_audio_proc, self.signal_plot]
         else:
             return [self.im_video, self.surface_ax, self.line_audio, self.line_audio_proc, self.signal_plot]
-
-
 
     # --- display
     @staticmethod
@@ -275,12 +272,12 @@ class Inka:
 
         # --- wave
         plt.subplot(2, 2, 3)
-       # librosa.display.waveshow(self.y, sr=self.sr)
+        #librosa.display.waveshow(self.y, sr=self.sr)
         self.line_audio = plt.axvline(x=10, ymin=0, ymax=1, color='r', linewidth='1')
 
         # --- wave processed
         plt.subplot(2, 2, 4)
-        #librosa.display.waveshow(self.y2, sr=self.sr)
+#        librosa.display.waveshow(self.y2, sr=self.sr)
         self.line_audio_proc = plt.axvline(x=0, ymin=0, ymax=1, color='r', linewidth='1')
         self.signal_plot, = plt.plot(self.signal_x, self.signal_y, 'r')
 
@@ -299,6 +296,5 @@ if __name__ == '__main__':
     inka.process_video()
     inka.process_audio()
     inka.display_video_and_audio()
-
 
 
