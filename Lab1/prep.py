@@ -54,8 +54,8 @@ class Inka:
     @staticmethod
     def load_video_data():
         # todo: enter paths to dataset dir and video file 
-        path_dir = ...
-        video_filename = ...
+        path_dir = "\\Users\\PanSt\\OneDrive\\Pulpit\\pythonProject\\Lab1"
+        video_filename = 'video1.wmv'
 
         pickle_filename = video_filename[:-3] + 'p'
         path_video = os.path.join(path_dir, video_filename)
@@ -84,8 +84,8 @@ class Inka:
 
             print('gauss filtering...')
             # todo: implement gaussian filtering
-            # this should be a list of filtered vieo frames
-            frames_filtered = ...
+            # this should be a list of filtered video frames
+            frames_filtered = gaussian_filter(frames, sigma=5)
             print('gauss filtering finished')
 
             with open(path_pickle, 'wb') as handle:
@@ -104,7 +104,7 @@ class Inka:
     @staticmethod
     def load_audio_data():
         # todo: enter path to audio file
-        audio_path = ...
+        audio_path = "\\Users\\PanSt\\OneDrive\\Pulpit\\pythonProject\\Lab1\\audio1.wav"
         y, sr = librosa.load(audio_path, sr=16000)
         print('audio data loaded, len: ', len(y))
         return y, sr
@@ -118,7 +118,10 @@ class Inka:
     def butter_bandpass(lowcut, highcut, fs, order=5):
         # todo: implement bandpass butterworth filter
         # hint: normalize the low and highcuts using the sampling rate
-        b, a = ...
+        nyquist = 0.5 * fs
+        low = lowcut / nyquist
+        high = highcut / nyquist
+        b, a = butter(order, [low, high], btype='band')
         return b, a
 
     @staticmethod
@@ -133,7 +136,7 @@ class Inka:
         self.frame_array_filtered = np.array(self.frames_filtered)
         self.median_initial20 = np.median(self.frame_array_filtered[:20, :, :], axis=0)
 
-    # @staticmethod
+    @staticmethod
     def anim_process_frame(self, i):
         frame = self.frames[i]
         frame_filtered = self.frames_filtered[i]
@@ -141,14 +144,14 @@ class Inka:
         start_idx = np.max([0, i - win_len])
         end_idx = np.max([1, i])
         # todo: calculate median of frames between start and end idxs
-        self.frame_median = ...
+        self.frame_median = (start_idx + end_idx) / 2
 
         # todo: calculate the difference between the filtered frames and the median
         # hint: normalize the frame values afterwards
-        frame_diff_median = ...
+        frame_diff_median = frame_filtered - self.frame_median
 
         # todo: reduce low values to 0
-        ...
+        threshold = 0.2 * self.frame_median
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
         frame_diff_median_rgb = cv2.applyColorMap(frame_diff_median, cv2.COLORMAP_AUTUMN)
@@ -171,17 +174,17 @@ class Inka:
             roi_x2 = self.roi_cx + self.roi_size
             roi_y1 = self.roi_cy - self.roi_size
             roi_y2 = self.roi_cy + self.roi_size
-            # roi = frame_diff_median[self.roi_x1:self.roi_x2, self.roi_y1:self.roi_y2]
+            roi = frame_diff_median[self.roi_x1:self.roi_x2, self.roi_y1:self.roi_y2]
             roi = frame_diff_median[roi_y1:roi_y2, roi_x1:roi_x2]
             self.roi_color = (255, 0, 0)
             # # already after one thresholding, now just to binarize
             ret_val, roi_binary = cv2.threshold(roi, 10, 255, cv2.THRESH_BINARY)
             roi_moments = cv2.moments(roi_binary)
             if roi_moments["m00"] != 0:
-                # print(roi_moments)
+                print(roi_moments)
                 blob_cx = int(roi_moments["m10"] / roi_moments["m00"])
                 blob_cy = int(roi_moments["m01"] / roi_moments["m00"])
-                # print('blob bcx {} bcy {}'.format(blob_cx, blob_cy))
+                print('blob bcx {} bcy {}'.format(blob_cx, blob_cy))
                 self.roi_cx = min(frame.shape[1], max(self.roi_size, roi_x1 + blob_cx))
                 self.roi_cy = min(frame.shape[0], max(self.roi_size, roi_y1 + blob_cy))
             else:
@@ -200,8 +203,8 @@ class Inka:
         roi_y2 = self.roi_cy + self.roi_size
         roi_start = (roi_x2 - 1, roi_y1)
         roi_end = (roi_x1, roi_y2 - 1)
-        # print(roi_start)
-        # print(roi_end)
+        print(roi_start)
+        print(roi_end)
         frame_rgb = cv2.rectangle(frame_rgb, roi_start, roi_end, self.roi_color, self.roi_thickness)
 
 
@@ -210,15 +213,15 @@ class Inka:
             frame = frame / 3.0
             frame[frame_diff_median > threshold] = 250
             zz = frame/255.0
-            # zz = frame_diff_median/255.0
+            zz = frame_diff_median/255.0
             self.surface_plot.remove()
             self.surface_plot = self.surface_ax.plot_surface(self.xx, self.yy, zz, linewidth=0, antialiased=False, cmap=cm.plasma)
 
         # --- set plots
-        # im_video.set_array(frame)
+        self.im_video.set_array(frame)
         self.im_video.set_array(frame_rgb)
         if not self.use3d:
-            # self.im_video_proc.set_array(frame_diff_median)
+            self.im_video_proc.set_array(frame_diff_median)
             self.im_video_proc.set_array(frame_diff_median_rgb)
         self.line_audio.set_xdata(0.033 * i)
         self.line_audio_proc.set_xdata(0.033 * i)
@@ -228,6 +231,8 @@ class Inka:
             return [self.im_video, self.im_video_proc, self.line_audio, self.line_audio_proc, self.signal_plot]
         else:
             return [self.im_video, self.surface_ax, self.line_audio, self.line_audio_proc, self.signal_plot]
+
+
 
     # --- display
     @staticmethod
@@ -270,12 +275,12 @@ class Inka:
 
         # --- wave
         plt.subplot(2, 2, 3)
-        librosa.display.waveshow(self.y, sr=self.sr)
+       # librosa.display.waveshow(self.y, sr=self.sr)
         self.line_audio = plt.axvline(x=10, ymin=0, ymax=1, color='r', linewidth='1')
 
         # --- wave processed
         plt.subplot(2, 2, 4)
-        librosa.display.waveshow(self.y2, sr=self.sr)
+        #librosa.display.waveshow(self.y2, sr=self.sr)
         self.line_audio_proc = plt.axvline(x=0, ymin=0, ymax=1, color='r', linewidth='1')
         self.signal_plot, = plt.plot(self.signal_x, self.signal_y, 'r')
 
