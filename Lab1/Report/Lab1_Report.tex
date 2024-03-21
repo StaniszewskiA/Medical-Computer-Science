@@ -1,0 +1,90 @@
+\documentclass[12pt,a4paper,table]{article}
+\usepackage[a4paper,
+            tmargin=2cm,
+            bmargin=2cm,
+            lmargin=2cm,
+            rmargin=2cm,
+            bindingoffset=0cm]{geometry}
+
+
+\usepackage{lmodern}
+\usepackage[T1]{polski}
+\usepackage[utf8]{inputenc}
+\usepackage{tocloft}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{subfig}
+\usepackage{float}
+\usepackage{booktabs}
+
+\hypersetup{
+    colorlinks,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=black,
+    urlcolor=black
+}
+
+\newtheorem{definition}{Def}
+
+\begin{document}
+    \title{
+        Informatyka Medyczna \\
+        Laboratorium 1
+    }
+    \author{
+        Adam Staniszewski \\
+        Ewa Żukowska
+    }
+
+    \date{\today}
+
+    \maketitle
+
+    \tableofcontents
+    \newpage
+    Celem laboratorium było przygotowanie narzędzia, które umożliwiałoby śledzenie położenia wkłuwanej igły. Dzięki wizualizacji odszumionego sygnału możemy zaobserwować moment wkłucia.
+    \section{Zadanie 1}
+    W zadaniu pierwszym należało dodać możliwość zastosowania filtra Gaussaw celu odszumienia sygnału.
+    \begin{lstlisting}[language=Python]
+    from scipy.ndimage import gaussian_filter
+    
+    frames_filtered = gaussian_filter(frames, sigma=5)
+    \end{lstlisting}
+
+    \vspace{1em}
+    \raggedright
+    Następnie trzeba było dodać filtr Butterwortha, który posłuży do dalszego odszumiania. 
+
+    \begin{lstlisting}[language=Python]
+    @staticmethod
+    def butter_bandpass(lowcut, highcut, fs, order=5):
+        nyquist = 0.5 * fs
+        low = lowcut / nyquist
+        high = highcut / nyquist
+        b, a = butter(order, [low, high], btype='band')
+        return b, a
+
+    @staticmethod
+    def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
+        b, a = Inka.butter_bandpass(lowcut, highcut, fs, order=order)
+        y = lfilter(b, a, data)
+        return y
+    \end{lstlisting}
+
+    \vspace{1em}
+    \raggedright
+    Ostatnim krokiem w tym zadaniu było prygotowanie wizualizacji dotyczących poprzednich punktów.
+
+    \begin{lstlisting}[language=Python]
+        TUTAJ KOD
+    \end{lstlisting}
+    
+    \section{Zadanie 2}
+    W zadaniu drugim należało 
+    \section{Zadanie 3}
+    W zadaniu trzecim
+
+\end{document}
