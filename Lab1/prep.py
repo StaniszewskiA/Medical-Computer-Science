@@ -14,7 +14,7 @@ import threading
 from pygame import mixer
 from scipy.signal import butter, lfilter
 from scipy.ndimage import gaussian_filter
-
+from skimage.feature import graycomatrix, graycoprops
 
 class Inka:
     def __init__(self):
@@ -55,7 +55,7 @@ class Inka:
     def load_video_data():
 
         # todo: enter paths to dataset dir and video file
-        path_dir = "\\Users\\PanSt\\OneDrive\\Pulpit\\pythonProject\\Lab1"
+        path_dir = "/Users/ewa/Desktop/IM/Medical-Computer-Science/Lab1"
         video_filename = 'video1.wmv'
 
         pickle_filename = video_filename[:-3] + 'p'
@@ -105,7 +105,7 @@ class Inka:
     @staticmethod
     def load_audio_data():
         # todo: enter path to audio file
-        audio_path = "\\Users\\PanSt\\OneDrive\\Pulpit\\pythonProject\\Lab1\\audio1.wav"
+        audio_path = "/Users/ewa/Desktop/IM/Medical-Computer-Science/Lab1/audio1.wav"
         y, sr = librosa.load(audio_path, sr=16000)
         print('audio data loaded, len: ', len(y))
         return y, sr
@@ -124,7 +124,7 @@ class Inka:
         return b, a
 
     @staticmethod
-    def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
+    def butter_bandpass_filter(data, lowcut, highcut, fs, order=1):
         b, a = Inka.butter_bandpass(lowcut, highcut, fs, order=order)
         y = lfilter(b, a, data)
         return y
@@ -143,14 +143,45 @@ class Inka:
         start_idx = np.max([0, i - win_len])
         end_idx = np.max([1, i])
         # todo: calculate median of frames between start and end idxs
-        self.frame_median = (start_idx + end_idx)//2
+
+        matrices_list = self.frames_filtered[start_idx:end_idx]
+
+        global_median = np.median(matrices_list)
+        selected_matrix_index = np.argmin(np.abs(np.median(frame_filtered) - global_median))
+        self.frame_median = matrices_list[selected_matrix_index]
+
 
         # todo: calculate the difference between the filtered frames and the median
         # hint: normalize the frame values afterwards
+
         frame_diff_median = frame_filtered - self.frame_median
+        print("mediana1", frame_diff_median.sum())
+        mean_val = np.mean(frame_diff_median)
+        std_dev = np.std(frame_diff_median)
+        # #frame_diff_median = cv2.normalize(frame_diff_median, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        #
+        # if std_dev != 0:
+        #     frame_diff_median = np.abs(frame_diff_median - mean_val) / std_dev
+        #     print("frame_filtered", frame_filtered)
+        #
+        #     print("mediana2", frame_diff_median)
+        #     print("sr",  mean_val)
+        #     print("sd", std_dev)
+        # else:
+        #     frame_diff_median = frame_filtered - self.frame_median
+        # if frame_diff_median.sum() != 0:
+        #     arrmax, arrmin = frame_diff_median.max(), frame_diff_median.min()
+        #     frame_diff_median = (frame_diff_median - arrmin) / (arrmax - arrmin)
+
+
+        print("ramka", self.frame_median)
+        print(type(self.frame))
+        print(type(frame_diff_median))
+        print("diff", frame_diff_median)
+
 
         # todo: reduce low values to 0
-        threshold = 0.2 * self.frame_median
+        threshold = 255
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
         frame_diff_median_rgb = cv2.applyColorMap(frame_diff_median, cv2.COLORMAP_AUTUMN)
@@ -173,7 +204,8 @@ class Inka:
             roi_x2 = self.roi_cx + self.roi_size
             roi_y1 = self.roi_cy - self.roi_size
             roi_y2 = self.roi_cy + self.roi_size
-            # roi = frame_diff_median[self.roi_x1:self.roi_x2, self.roi_y1:self.roi_y2]
+
+            #roi = frame_diff_median[self.roi_x1:self.roi_x2, self.roi_y1:self.roi_y2]
             roi = frame_diff_median[roi_y1:roi_y2, roi_x1:roi_x2]
             self.roi_color = (255, 0, 0)
             # # already after one thresholding, now just to binarize
@@ -231,6 +263,153 @@ class Inka:
         else:
             return [self.im_video, self.surface_ax, self.line_audio, self.line_audio_proc, self.signal_plot]
 
+    def anim_process_frame_ours(self, i):
+        frame = self.frames[i]
+        frame_filtered = self.frames_filtered[i]
+        win_len = 20
+        start_idx = np.max([0, i - win_len])
+        end_idx = np.max([1, i])
+        # todo: calculate median of frames between start and end idxs
+
+        matrices_list = self.frames_filtered[start_idx:end_idx]
+
+        global_median = np.median(matrices_list)
+        selected_matrix_index = np.argmin(np.abs(np.median(frame_filtered) - global_median))
+        self.frame_median = matrices_list[selected_matrix_index]
+
+        # todo: calculate the difference between the filtered frames and the median
+        # hint: normalize the frame values afterwards
+
+        frame_diff_median = frame_filtered - self.frame_median
+        # todo: reduce low values to 0
+        threshold = 250
+
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+        frame_diff_median_rgb = cv2.applyColorMap(frame_diff_median, cv2.COLORMAP_AUTUMN)
+        frame_diff_median_rgb = cv2.cvtColor(frame_diff_median_rgb, cv2.COLOR_BGR2RGB)
+
+        frame_rgb[frame_diff_median > threshold] = 0
+        frame_diff_median_rgb[frame_diff_median < threshold] = 0
+        frame_rgb += frame_diff_median_rgb
+
+        # todo: change the ROI descriptor
+        # --- tracking
+        # reinitialize
+
+        if i == 0:
+            self.signal_x = [0]
+            self.signal_y = [0]
+            self.roi_cx = 490
+            self.roi_cy = 50
+        if i > 20:
+            roi_x1 = self.roi_cx - self.roi_size
+            roi_x2 = self.roi_cx + self.roi_size
+            roi_y1 = self.roi_cy - self.roi_size
+            roi_y2 = self.roi_cy + self.roi_size
+
+            # roi = frame_diff_median[self.roi_x1:self.roi_x2, self.roi_y1:self.roi_y2]
+            roi = frame_diff_median[roi_y1:roi_y2, roi_x1:roi_x2]
+            roi_matrix = graycomatrix(roi, [1], [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4], levels=256, normed=True)
+            roi_props = graycoprops(roi_matrix, 'contrast')
+            roi_desc = np.mean(roi_props)
+            self.signal_x.append(0.03 * i)
+            self.signal_x.append(roi_desc)
+            print('roi desc:', roi_desc)
+
+        roi_x1 = self.roi_cx - self.roi_size
+        roi_x2 = self.roi_cx + self.roi_size
+        roi_y1 = self.roi_cy - self.roi_size
+        roi_y2 = self.roi_cy + self.roi_size
+        roi_start = (roi_x2 - 1, roi_y1)
+        roi_end = (roi_x1, roi_y2 - 1)
+
+        frame_rgb = cv2.rectangle(frame_rgb, roi_start, roi_end, self.roi_color, self.roi_thickness)
+
+        # --- 3d
+        if self.use3d:
+            frame = frame / 3.0
+            # frame[frame_diff_median > threshold] = 250
+            zz = frame / 255.0
+            # zz = frame_diff_median/255.0
+            self.surface_plot.remove()
+            self.surface_plot = self.surface_ax.plot_surface(self.xx, self.yy, zz, linewidth=0, antialiased=False,
+                                                             cmap=cm.plasma)
+
+        # --- set plots
+        # im_video.set_array(frame)
+        self.im_video.set_array(frame_rgb)
+        if not self.use3d:
+            # self.im_video_proc.set_array(frame_diff_median)
+            self.im_video_proc.set_array(frame_diff_median_rgb)
+        self.line_audio.set_xdata(0.033 * i)
+        self.line_audio_proc.set_xdata(0.033 * i)
+        self.signal_plot.set_xdata(self.signal_x)
+        self.signal_plot.set_ydata(self.signal_y)
+        if not self.use3d:
+            return [self.im_video, self.im_video_proc, self.line_audio, self.line_audio_proc, self.signal_plot]
+        else:
+            return [self.im_video, self.surface_ax, self.line_audio, self.line_audio_proc, self.signal_plot]
+
+
+
+        """
+        self.roi_color = (255, 0, 0)
+            # # already after one thresholding, now just to binarize
+            ret_val, roi_binary = cv2.threshold(roi, 10, 255, cv2.THRESH_BINARY)
+            roi_moments = cv2.moments(roi_binary)
+            if roi_moments["m00"] != 0:
+                # print(roi_moments)
+                blob_cx = int(roi_moments["m10"] / roi_moments["m00"])
+                blob_cy = int(roi_moments["m01"] / roi_moments["m00"])
+                # print('blob bcx {} bcy {}'.format(blob_cx, blob_cy))
+                self.roi_cx = min(frame.shape[1], max(self.roi_size, roi_x1 + blob_cx))
+                self.roi_cy = min(frame.shape[0], max(self.roi_size, roi_y1 + blob_cy))
+            else:
+                pass
+            from_median_initial20_diff = np.abs(frame_filtered - self.median_initial20)
+            roi_no_tresh = from_median_initial20_diff[roi_y1:roi_y2, roi_x1:roi_x2]
+            roi_desc = np.sum(roi_no_tresh) / 10000
+            self.signal_x.append(0.033 * i)
+            self.signal_y.append(roi_desc)
+            print('roi desc:', roi_desc)
+
+        # --- draw roi
+        roi_x1 = self.roi_cx - self.roi_size
+        roi_x2 = self.roi_cx + self.roi_size
+        roi_y1 = self.roi_cy - self.roi_size
+        roi_y2 = self.roi_cy + self.roi_size
+        roi_start = (roi_x2 - 1, roi_y1)
+        roi_end = (roi_x1, roi_y2 - 1)
+        # print(roi_start)
+        # print(roi_end)
+        frame_rgb = cv2.rectangle(frame_rgb, roi_start, roi_end, self.roi_color, self.roi_thickness)
+
+        # --- 3d
+        if self.use3d:
+            frame = frame / 3.0
+            # frame[frame_diff_median > threshold] = 250
+            zz = frame / 255.0
+            # zz = frame_diff_median/255.0
+            self.surface_plot.remove()
+            self.surface_plot = self.surface_ax.plot_surface(self.xx, self.yy, zz, linewidth=0, antialiased=False,
+                                                             cmap=cm.plasma)
+
+        # --- set plots
+        # im_video.set_array(frame)
+        self.im_video.set_array(frame_rgb)
+        if not self.use3d:
+            # self.im_video_proc.set_array(frame_diff_median)
+            self.im_video_proc.set_array(frame_diff_median_rgb)
+        self.line_audio.set_xdata(0.033 * i)
+        self.line_audio_proc.set_xdata(0.033 * i)
+        self.signal_plot.set_xdata(self.signal_x)
+        self.signal_plot.set_ydata(self.signal_y)
+        if not self.use3d:
+            return [self.im_video, self.im_video_proc, self.line_audio, self.line_audio_proc, self.signal_plot]
+        else:
+            return [self.im_video, self.surface_ax, self.line_audio, self.line_audio_proc, self.signal_plot]
+"""
+
     # --- display
     @staticmethod
     def display_spectro(y, sr):
@@ -271,14 +450,15 @@ class Inka:
             self.surface_plot = self.surface_ax.plot_surface(self.xx, self.yy, zz, linewidth=0, antialiased=False, cmap=cm.plasma)
 
         # --- wave
+        rgb = (0.2, 0.8, 0.6)
         plt.subplot(2, 2, 3)
-        #librosa.display.waveshow(self.y, sr=self.sr)
-        self.line_audio = plt.axvline(x=10, ymin=0, ymax=1, color='r', linewidth='1')
+        librosa.display.waveshow(self.y, sr=self.sr, color=rgb)
+        self.line_audio = plt.axvline(x=10, ymin=0, ymax=15, color='r', linewidth='1')
 
         # --- wave processed
         plt.subplot(2, 2, 4)
-#        librosa.display.waveshow(self.y2, sr=self.sr)
-        self.line_audio_proc = plt.axvline(x=0, ymin=0, ymax=1, color='r', linewidth='1')
+        librosa.display.waveshow(self.y2, sr=self.sr, color=rgb)
+        self.line_audio_proc = plt.axvline(x=0, ymin=0, ymax=15, color='r', linewidth='1')
         self.signal_plot, = plt.plot(self.signal_x, self.signal_y, 'r')
 
         self.ani = animation.FuncAnimation(fig, self.anim_process_frame,
