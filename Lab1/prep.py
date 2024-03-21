@@ -14,7 +14,7 @@ import threading
 from pygame import mixer
 from scipy.signal import butter, lfilter
 from scipy.ndimage import gaussian_filter
-
+from skimage.feature import graycoprops, graycomatrix
 
 class Inka:
     def __init__(self):
@@ -53,8 +53,6 @@ class Inka:
 
     @staticmethod
     def load_video_data():
-
-        # todo: enter paths to dataset dir and video file
         path_dir = "\\Users\\PanSt\\OneDrive\\Pulpit\\pythonProject\\Lab1"
         video_filename = 'video1.wmv'
 
@@ -84,8 +82,6 @@ class Inka:
             print('loaded frames from video: {}  ({:.2f} s.)'.format(len(frames), (time.time() - t_start)))
 
             print('gauss filtering...')
-            # todo: implement gaussian filtering
-            # this should be a list of filtered video frames
             frames_filtered = gaussian_filter(frames, sigma=5)
             print('gauss filtering finished')
 
@@ -104,7 +100,6 @@ class Inka:
 
     @staticmethod
     def load_audio_data():
-        # todo: enter path to audio file
         audio_path = "\\Users\\PanSt\\OneDrive\\Pulpit\\pythonProject\\Lab1\\audio1.wav"
         y, sr = librosa.load(audio_path, sr=16000)
         print('audio data loaded, len: ', len(y))
@@ -135,21 +130,20 @@ class Inka:
         self.frame_array_filtered = np.array(self.frames_filtered)
         self.median_initial20 = np.median(self.frame_array_filtered[:20, :, :], axis=0)
 
-    # @staticmethod
+    @staticmethod
     def anim_process_frame(self, i):
         frame = self.frames[i]
         frame_filtered = self.frames_filtered[i]
         win_len = 20
         start_idx = np.max([0, i - win_len])
         end_idx = np.max([1, i])
-        # todo: calculate median of frames between start and end idxs
-        self.frame_median = (start_idx + end_idx)//2
 
-        # todo: calculate the difference between the filtered frames and the median
-        # hint: normalize the frame values afterwards
+        self.frame_median = np.median(self.frames_filtered[start_idx:end_idx], axis=0)
+        self.frame_median = self.frame_median.astype(np.uint8)
+
         frame_diff_median = frame_filtered - self.frame_median
+        frame_diff_median = frame_diff_median.astype(np.uint8)
 
-        # todo: reduce low values to 0
         threshold = 0.2 * self.frame_median
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
@@ -159,6 +153,8 @@ class Inka:
         frame_rgb[frame_diff_median > threshold] = 0
         frame_diff_median_rgb[frame_diff_median < threshold] = 0
         frame_rgb += frame_diff_median_rgb
+
+        roi_standard_deviation = 0
 
         # todo: change the ROI descriptor
         # --- tracking
@@ -173,24 +169,20 @@ class Inka:
             roi_x2 = self.roi_cx + self.roi_size
             roi_y1 = self.roi_cy - self.roi_size
             roi_y2 = self.roi_cy + self.roi_size
-            # roi = frame_diff_median[self.roi_x1:self.roi_x2, self.roi_y1:self.roi_y2]
-            roi = frame_diff_median[roi_y1:roi_y2, roi_x1:roi_x2]
-            self.roi_color = (255, 0, 0)
-            # # already after one thresholding, now just to binarize
-            ret_val, roi_binary = cv2.threshold(roi, 10, 255, cv2.THRESH_BINARY)
-            roi_moments = cv2.moments(roi_binary)
-            if roi_moments["m00"] != 0:
-                # print(roi_moments)
-                blob_cx = int(roi_moments["m10"] / roi_moments["m00"])
-                blob_cy = int(roi_moments["m01"] / roi_moments["m00"])
-                # print('blob bcx {} bcy {}'.format(blob_cx, blob_cy))
-                self.roi_cx = min(frame.shape[1], max(self.roi_size, roi_x1 + blob_cx))
-                self.roi_cy = min(frame.shape[0], max(self.roi_size, roi_y1 + blob_cy))
-            else:
-                pass
+
+            roi_frame = frame_filtered[roi_y1:roi_y2, roi_x1:roi_x2]
+
+            contours, _ = cv2.findContours(roi_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            if contours:
+                largest_contour = max(contours, key=cv2.contourArea())
+                x, y, w, h= cv2.boundingRect(largest_contour)
+
+                self.roi_cx = min(frame.shape[1], max(self.roi_size, roi_x1 + x + w // 2))
+                self.roi_cy = min(frame.shape[0], max(self.roi_size, roi_y1 + y + h // 2))
+
             from_median_initial20_diff = np.abs(frame_filtered - self.median_initial20)
-            roi_no_tresh = from_median_initial20_diff[roi_y1:roi_y2, roi_x1:roi_x2]
-            roi_desc = np.sum(roi_no_tresh)/10000
+            roi_desc = np.sum(from_median_initial20_diff[roi_y1:roi_y2, roi_x1:roi_x2]) / 10000
             self.signal_x.append(0.033 * i)
             self.signal_y.append(roi_desc)
             print('roi desc:', roi_desc)
@@ -272,12 +264,12 @@ class Inka:
 
         # --- wave
         plt.subplot(2, 2, 3)
-        #librosa.display.waveshow(self.y, sr=self.sr)
+        librosa.display.waveshow(self.y, sr=self.sr, color='b')
         self.line_audio = plt.axvline(x=10, ymin=0, ymax=1, color='r', linewidth='1')
 
         # --- wave processed
         plt.subplot(2, 2, 4)
-#        librosa.display.waveshow(self.y2, sr=self.sr)
+        librosa.display.waveshow(self.y2, sr=self.sr, color='b')
         self.line_audio_proc = plt.axvline(x=0, ymin=0, ymax=1, color='r', linewidth='1')
         self.signal_plot, = plt.plot(self.signal_x, self.signal_y, 'r')
 
